@@ -1,0 +1,258 @@
+/**********************************************************************
+* Sokol 3d cube demo
+* Copyright (c) 2021 Dario Deledda. All rights reserved.
+* Use of this source code is governed by an MIT license
+* that can be found in the LICENSE file.
+* TODO:
+* - add instancing
+* - add an example with shaders
+**********************************************************************/
+import gg
+import gx
+import sokol.sapp
+import sokol.gfx
+import sokol.sgl
+import time
+
+const win_width = 480
+const win_height = 480
+const bg_color = gx.white
+
+struct App {
+mut:
+	gg          &gg.Context = unsafe { nil }
+	pip_3d      sgl.Pipeline
+	texture     gfx.Image
+	sampler     gfx.Sampler
+	init_flag   bool
+	frame_count int
+	mouse_x     int = -1
+	mouse_y     int = -1
+	last_time   time.Time = time.now()
+}
+
+fn create_texture(w int, h int, buf &u8) (gfx.Image, gfx.Sampler) {
+	sz := w * h * 4
+	mut img_desc := gfx.ImageDesc{
+		width:       w
+		height:      h
+		num_mipmaps: 0
+		// usage: .dynamic
+		label:         &char(unsafe { nil })
+		d3d11_texture: 0
+	}
+	// comment, if .dynamic is enabled
+	img_desc.data.subimage[0][0] = gfx.Range{
+		ptr:  buf
+		size: usize(sz)
+	}
+
+	sg_img := gfx.make_image(&img_desc)
+
+	mut smp_desc := gfx.SamplerDesc{
+		min_filter: .linear
+		mag_filter: .linear
+		wrap_u:     .clamp_to_edge
+		wrap_v:     .clamp_to_edge
+	}
+
+	sg_smp := gfx.make_sampler(&smp_desc)
+	return sg_img, sg_smp
+}
+
+fn destroy_texture(sg_img gfx.Image) {
+	gfx.destroy_image(sg_img)
+}
+
+// Use only if usage: .dynamic is enabled
+fn update_text_texture(sg_img gfx.Image, w int, h int, buf &u8) {
+	sz := w * h * 4
+	mut tmp_sbc := gfx.ImageData{}
+	tmp_sbc.subimage[0][0] = gfx.Range{
+		ptr:  buf
+		size: usize(sz)
+	}
+	gfx.update_image(sg_img, &tmp_sbc)
+}
+
+fn cube_t(r f32, g f32, b f32) {
+	sgl.begin_quads()
+	// edge color
+	sgl.c3f(r, g, b)
+	// edge coord
+	// x,y,z, texture cord: u,v
+	sgl.v3f_t2f(-1.0, 1.0, -1.0, 0.0, 0.25)
+	sgl.v3f_t2f(1.0, 1.0, -1.0, 0.25, 0.25)
+	sgl.v3f_t2f(1.0, -1.0, -1.0, 0.25, 0.0)
+	sgl.v3f_t2f(-1.0, -1.0, -1.0, 0.0, 0.0)
+	sgl.c3f(r, g, b)
+	sgl.v3f_t2f(-1.0, -1.0, 1.0, 0.0, 0.25)
+	sgl.v3f_t2f(1.0, -1.0, 1.0, 0.25, 0.25)
+	sgl.v3f_t2f(1.0, 1.0, 1.0, 0.25, 0.0)
+	sgl.v3f_t2f(-1.0, 1.0, 1.0, 0.0, 0.0)
+	sgl.c3f(r, g, b)
+	sgl.v3f_t2f(-1.0, -1.0, 1.0, 0.0, 0.25)
+	sgl.v3f_t2f(-1.0, 1.0, 1.0, 0.25, 0.25)
+	sgl.v3f_t2f(-1.0, 1.0, -1.0, 0.25, 0.0)
+	sgl.v3f_t2f(-1.0, -1.0, -1.0, 0.0, 0.0)
+	sgl.c3f(r, g, b)
+	sgl.v3f_t2f(1.0, -1.0, 1.0, 0.0, 0.25)
+	sgl.v3f_t2f(1.0, -1.0, -1.0, 0.25, 0.25)
+	sgl.v3f_t2f(1.0, 1.0, -1.0, 0.25, 0.0)
+	sgl.v3f_t2f(1.0, 1.0, 1.0, 0.0, 0.0)
+	sgl.c3f(r, g, b)
+	sgl.v3f_t2f(1.0, -1.0, -1.0, 0.0, 0.25)
+	sgl.v3f_t2f(1.0, -1.0, 1.0, 0.25, 0.25)
+	sgl.v3f_t2f(-1.0, -1.0, 1.0, 0.25, 0.0)
+	sgl.v3f_t2f(-1.0, -1.0, -1.0, 0.0, 0.0)
+	sgl.c3f(r, g, b)
+	sgl.v3f_t2f(-1.0, 1.0, -1.0, 0.0, 0.25)
+	sgl.v3f_t2f(-1.0, 1.0, 1.0, 0.25, 0.25)
+	sgl.v3f_t2f(1.0, 1.0, 1.0, 0.25, 0.0)
+	sgl.v3f_t2f(1.0, 1.0, -1.0, 0.0, 0.0)
+	sgl.end()
+}
+
+fn draw_texture_cubes(app App) {
+	rot := [f32(app.mouse_x), f32(app.mouse_y)]
+	sgl.defaults()
+	sgl.load_pipeline(app.pip_3d)
+
+	sgl.enable_texture()
+	sgl.texture(app.texture, app.sampler)
+
+	sgl.matrix_mode_projection()
+	sgl.perspective(sgl.rad(45.0), 1.0, 0.1, 100.0)
+
+	sgl.matrix_mode_modelview()
+	sgl.translate(0.0, 0.0, -12.0)
+	sgl.rotate(sgl.rad(rot[0]), 1.0, 0.0, 0.0)
+	sgl.rotate(sgl.rad(rot[1]), 0.0, 1.0, 0.0)
+	cube_t(1, 1, 1)
+
+	sgl.disable_texture()
+}
+
+fn frame(mut app App) {
+	ws := gg.window_size_real_pixels()
+	ratio := f32(ws.width) / ws.height
+	dw := ws.width
+	dh := ws.height
+	// x1 := dw/2
+	// fps := 1000 / (time.now() - app.last_time).milliseconds()
+	// print('FPS: $fps\n')
+
+	app.gg.begin()
+	// sgl.defaults()
+
+	// textured cubed with viewport
+	sgl.viewport(0, int(dh / 5), dw, int(dh * ratio), true)
+	draw_texture_cubes(app)
+
+	app.frame_count++
+	app.last_time = time.now()
+	// time.sleep(time.millisecond * 100) // ~60 FPS
+
+	app.gg.end()
+}
+
+fn my_init(mut app App) {
+	app.init_flag = true
+
+	// set max vertices,
+	// for a large number of the same type of object it is better use the instances!!
+	desc := sapp.create_desc()
+	gfx.setup(&desc)
+	sgl_desc := sgl.Desc{
+		max_vertices: 50 * 65536
+	}
+	sgl.setup(&sgl_desc)
+
+	// 3d pipeline
+	mut pipdesc := gfx.PipelineDesc{}
+	unsafe { vmemset(&pipdesc, 0, int(sizeof(pipdesc))) }
+
+	color_state := gfx.ColorTargetState{
+		blend: gfx.BlendState{
+			enabled:        true
+			src_factor_rgb: .src_alpha
+			dst_factor_rgb: .one_minus_src_alpha
+		}
+	}
+	pipdesc.colors[0] = color_state
+
+	pipdesc.depth = gfx.DepthState{
+		write_enabled: true
+		compare:       .less_equal
+	}
+	pipdesc.cull_mode = .back
+	app.pip_3d = sgl.make_pipeline(&pipdesc)
+
+	// create chessboard texture 256*256 RGBA
+	w := 256
+	h := 256
+	sz := w * h * 4
+	tmp_txt := unsafe { malloc(sz) }
+	mut i := 0
+	for i < sz {
+		unsafe {
+			y := (i >> 0x8) >> 5 // 8 cell
+			x := (i & 0xFF) >> 5 // 8 cell
+			// upper left corner
+			if x == 0 && y == 0 {
+				tmp_txt[i] = u8(0xFF)
+				tmp_txt[i + 1] = u8(0)
+				tmp_txt[i + 2] = u8(0)
+				tmp_txt[i + 3] = u8(0xFF)
+			}
+			// low right corner
+			else if x == 7 && y == 7 {
+				tmp_txt[i] = u8(0)
+				tmp_txt[i + 1] = u8(0xFF)
+				tmp_txt[i + 2] = u8(0)
+				tmp_txt[i + 3] = u8(0xFF)
+			} else {
+				col := if ((x + y) & 1) == 1 { 0xFF } else { 0 }
+				tmp_txt[i] = u8(col) // red
+				tmp_txt[i + 1] = u8(col) // green
+				tmp_txt[i + 2] = u8(col) // blue
+				tmp_txt[i + 3] = u8(0xFF) // alpha
+			}
+			i += 4
+		}
+	}
+	unsafe {
+		app.texture, app.sampler = create_texture(w, h, tmp_txt)
+		free(tmp_txt)
+	}
+}
+
+fn my_event_manager(mut ev gg.Event, mut app App) {
+	if ev.typ == .mouse_move {
+		app.mouse_x = int(ev.mouse_x)
+		app.mouse_y = int(ev.mouse_y)
+	}
+	if ev.typ == .touches_began || ev.typ == .touches_moved {
+		if ev.num_touches > 0 {
+			touch_point := ev.touches[0]
+			app.mouse_x = int(touch_point.pos_x)
+			app.mouse_y = int(touch_point.pos_y)
+		}
+	}
+}
+
+fn main() {
+	mut app := &App{}
+	app.gg = gg.new_context(
+		width:         win_width
+		height:        win_height
+		create_window: true
+		window_title:  'Ordis'
+		user_data:     app
+		bg_color:      bg_color
+		frame_fn:      frame
+		init_fn:       my_init
+		event_fn:      my_event_manager
+	)
+	app.gg.run()
+}
