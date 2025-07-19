@@ -125,8 +125,8 @@ fn draw_texture_cubes(app App) {
 	sgl.push_matrix()
 
 	// unit circle
-	for i in 0 .. 16 {
-		angle := f32(i) * tau / 16.0
+	for i in 0 .. 32 {
+		angle := f32(i) * tau / 32.0
 		x := f32(math.cos(angle) * 2.5)
 		y := f32(math.sin(angle) * 2.5)
 		sgl.push_matrix()
