@@ -121,6 +121,38 @@ fn draw_texture_cubes(app App) {
 	step := f32(app.last_time.unix_milli() % 10000) / 10000.0 * tau
 	sgl.rotate(step, 0.0, 1.0, 0.0)
 	cube_t(1, 1, 1)
+	sgl.push_matrix()
+
+	// unit circle
+	// x, y is pos. y is sound
+	// TODO opposite of angle or something. i want angle to x,y. yeah, kinda opposite
+	// for i in 0 .. 16 {
+		sgl.push_matrix()
+		sgl.translate(2.5, 0.0, 0.0)
+		sgl.scale(0.1, 0.1, 0.1)
+		cube_t(0.5, 0.5, 0.5)
+		sgl.pop_matrix()
+
+		sgl.push_matrix()
+		sgl.translate(-2.5, 0.0, 0.0)
+		sgl.scale(0.1, 0.1, 0.1)
+		cube_t(0.5, 0.5, 0.5)
+		sgl.pop_matrix()
+
+		sgl.push_matrix()
+		sgl.translate(0.0, 0.0, 2.5)
+		sgl.scale(0.1, 0.1, 0.1)
+		cube_t(0.5, 0.5, 0.5)
+		sgl.pop_matrix()
+
+		sgl.push_matrix()
+		sgl.translate(0.0, 0.0, -2.5)
+		sgl.scale(0.1, 0.1, 0.1)
+		cube_t(0.5, 0.5, 0.5)
+		sgl.pop_matrix()
+	// }
+
+	sgl.pop_matrix()
 
 	sgl.disable_texture()
 }
@@ -144,7 +176,7 @@ fn frame(mut app App) {
 
 	app.frame_count++
 	app.last_time = time.now()
-	// time.sleep(time.millisecond * 100) // ~60 FPS
+	time.sleep(time.millisecond * 33) // ~60 FPS
 
 	app.gg.end()
 }
