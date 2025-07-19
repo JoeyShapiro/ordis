@@ -1,12 +1,3 @@
-/**********************************************************************
-* Sokol 3d cube demo
-* Copyright (c) 2021 Dario Deledda. All rights reserved.
-* Use of this source code is governed by an MIT license
-* that can be found in the LICENSE file.
-* TODO:
-* - add instancing
-* - add an example with shaders
-**********************************************************************/
 import gg
 import gx
 import sokol.sapp
@@ -16,7 +7,8 @@ import time
 
 const win_width = 480
 const win_height = 480
-const bg_color = gx.white
+const bg_color = gx.black
+const tau =  6.283185307179586
 
 struct App {
 mut:
@@ -114,7 +106,6 @@ fn cube_t(r f32, g f32, b f32) {
 }
 
 fn draw_texture_cubes(app App) {
-	rot := [f32(app.mouse_x), f32(app.mouse_y)]
 	sgl.defaults()
 	sgl.load_pipeline(app.pip_3d)
 
@@ -125,9 +116,10 @@ fn draw_texture_cubes(app App) {
 	sgl.perspective(sgl.rad(45.0), 1.0, 0.1, 100.0)
 
 	sgl.matrix_mode_modelview()
-	sgl.translate(0.0, 0.0, -12.0)
-	sgl.rotate(sgl.rad(rot[0]), 1.0, 0.0, 0.0)
-	sgl.rotate(sgl.rad(rot[1]), 0.0, 1.0, 0.0)
+	sgl.translate(0.0, 0.5, -10.0)
+	sgl.rotate(0.5, 1.0, 0.0, 0.0)
+	step := f32(app.last_time.unix_milli() % 10000) / 10000.0 * tau
+	sgl.rotate(step, 0.0, 1.0, 0.0)
 	cube_t(1, 1, 1)
 
 	sgl.disable_texture()
@@ -146,7 +138,8 @@ fn frame(mut app App) {
 	// sgl.defaults()
 
 	// textured cubed with viewport
-	sgl.viewport(0, int(dh / 5), dw, int(dh * ratio), true)
+	// y: := int(dh / 5)
+	sgl.viewport(0, 0, dw, int(dh * ratio), true)
 	draw_texture_cubes(app)
 
 	app.frame_count++
@@ -228,17 +221,7 @@ fn my_init(mut app App) {
 }
 
 fn my_event_manager(mut ev gg.Event, mut app App) {
-	if ev.typ == .mouse_move {
-		app.mouse_x = int(ev.mouse_x)
-		app.mouse_y = int(ev.mouse_y)
-	}
-	if ev.typ == .touches_began || ev.typ == .touches_moved {
-		if ev.num_touches > 0 {
-			touch_point := ev.touches[0]
-			app.mouse_x = int(touch_point.pos_x)
-			app.mouse_y = int(touch_point.pos_y)
-		}
-	}
+	
 }
 
 fn main() {
