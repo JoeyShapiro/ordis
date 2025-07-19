@@ -4,6 +4,7 @@ import sokol.sapp
 import sokol.gfx
 import sokol.sgl
 import time
+import math
 
 const win_width = 480
 const win_height = 480
@@ -124,33 +125,16 @@ fn draw_texture_cubes(app App) {
 	sgl.push_matrix()
 
 	// unit circle
-	// x, y is pos. y is sound
-	// TODO opposite of angle or something. i want angle to x,y. yeah, kinda opposite
-	// for i in 0 .. 16 {
+	for i in 0 .. 16 {
+		angle := f32(i) * tau / 16.0
+		x := f32(math.cos(angle) * 2.5)
+		y := f32(math.sin(angle) * 2.5)
 		sgl.push_matrix()
-		sgl.translate(2.5, 0.0, 0.0)
+		sgl.translate(x, 0.0, y)
 		sgl.scale(0.1, 0.1, 0.1)
 		cube_t(0.5, 0.5, 0.5)
 		sgl.pop_matrix()
-
-		sgl.push_matrix()
-		sgl.translate(-2.5, 0.0, 0.0)
-		sgl.scale(0.1, 0.1, 0.1)
-		cube_t(0.5, 0.5, 0.5)
-		sgl.pop_matrix()
-
-		sgl.push_matrix()
-		sgl.translate(0.0, 0.0, 2.5)
-		sgl.scale(0.1, 0.1, 0.1)
-		cube_t(0.5, 0.5, 0.5)
-		sgl.pop_matrix()
-
-		sgl.push_matrix()
-		sgl.translate(0.0, 0.0, -2.5)
-		sgl.scale(0.1, 0.1, 0.1)
-		cube_t(0.5, 0.5, 0.5)
-		sgl.pop_matrix()
-	// }
+	}
 
 	sgl.pop_matrix()
 
