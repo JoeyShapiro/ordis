@@ -192,9 +192,31 @@ fn frame(mut app App) {
 }
 
 fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueBufferRef, inStartTime &C.AudioTimeStamp, inNumPackets u32, inPacketDesc &C.AudioStreamPacketDescription) {
-	mut audio_data := unsafe { &AudioData(inUserData) }
+	// mut audio_data := unsafe { &AudioData(inUserData) }
 	
-	println('Audio callback triggered! $audio_data.recording')
+	if inBuffer.mAudioDataByteSize > 0 {
+        samples := unsafe { &i16(inBuffer.mAudioData) }
+        num_samples := inBuffer.mAudioDataByteSize / sizeof(i16)
+        
+        mut sum := i64(0)
+        for i in 0 .. num_samples {
+			sample := unsafe { samples[i] }
+            sum += sample * sample
+        }
+        rms := math.sqrt(f64(sum) / num_samples)
+        db := 20 * math.log10(rms / 32767.0)
+        
+        // Simple level meter
+        mut bars := int((db + 60) / 3) // Normalize -60dB to 0dB to 0-20 bars
+        if bars < 0 { bars = 0 }
+        if bars > 20 { bars = 20 }
+        
+        print("\033[ALevel: ")
+        mut i := 0 
+        for i < bars { print("█"); i++ }
+        for i < 20 { print("░"); i++ }
+        println(" $db dB")
+    }
 
 	// Re-enqueue the buffer for further use
 	unsafe {

@@ -29,9 +29,14 @@ pub type AudioFormatFlags = u32
 pub struct C.AudioQueueRef {
 }
 
-@[typedef]
-pub struct C.AudioQueueBufferRef {
+@[typdef]
+pub struct C.AudioQueueBuffer {
+	mAudioData &voidptr // you can recast to whatever, clever
+	mAudioDataByteSize u32
 }
+
+@[typedef]
+pub type C.AudioQueueBufferRef = &C.AudioQueueBuffer
 
 @[typedef]
 pub struct C.AudioFileID {
