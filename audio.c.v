@@ -5,9 +5,6 @@
 #flag darwin -framework CoreAudio
 #flag darwin -framework CoreFoundation
 #flag darwin -framework AudioToolbox
-// not used, compiled out
-// still odd, but was missing toolbox
-// has include failed, must be from framework
 
 @[typedef]
 pub struct C.AudioStreamBasicDescription {
@@ -100,3 +97,6 @@ pub type FnAudioQueueInputCallback = fn (
                                     inPacketDescs &C.AudioStreamPacketDescription)
 
 pub fn C.AudioQueueEnqueueBuffer(inAQ C.AudioQueueRef, inBuffer C.AudioQueueBufferRef, inNumPacketDescs u32, inPacketDescs &C.AudioStreamPacketDescription) OSStatus
+pub fn C.AudioQueueAllocateBuffer(inAQ C.AudioQueueRef, inBufferByteSize u32, outBuffer &C.AudioQueueBufferRef) OSStatus
+pub fn C.AudioQueueStart(inAQ C.AudioQueueRef, inStartTime &C.AudioTimeStamp) OSStatus
+pub fn C.AudioQueueDispose(inAQ C.AudioQueueRef, inImmediate bool) OSStatus

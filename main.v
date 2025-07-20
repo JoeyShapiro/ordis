@@ -202,23 +202,56 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 	}
 }
 
+fn record_audio(mut app App) {
+	app.audio_data.recording = true
+	
+	mut status := C.AudioQueueNewInput(&app.audio_data.data_format,
+									handle_audio,
+									&app.audio_data,
+									unsafe { nil },
+									unsafe { nil },
+									0,
+									&app.audio_data.queue)
+
+	if status != 0 {
+		println('Error creating audio queue: $status')
+		return
+	}
+
+	app.audio_data.buffer_byte_size = 1024 // Set buffer size
+
+	// Allocate and enqueue buffers
+    for i in 0 .. 3 {
+        status = C.AudioQueueAllocateBuffer(app.audio_data.queue,
+                                        app.audio_data.buffer_byte_size,
+                                        &app.audio_data.buffers[i])
+        if status != 0 {
+            println("Error allocating buffer $i: $status")
+            break
+        }
+        
+        status = C.AudioQueueEnqueueBuffer(app.audio_data.queue,
+                                       app.audio_data.buffers[i],
+                                       0,
+                                       unsafe { nil })
+        if status != 0 {
+            println("Error enqueuing buffer $i: $status")
+            break
+        }
+    }
+
+	// Start recording
+    status = C.AudioQueueStart(app.audio_data.queue, unsafe { nil })
+    if status != 0 {
+        C.AudioQueueDispose(app.audio_data.queue, true)
+        return
+    }
+}
+
 fn my_init(mut app App) {
 	app.init_flag = true
 
-	unsafe {
-		status := C.AudioQueueNewInput(&app.audio_data.data_format,
-                                        handle_audio,
-                                        &app.audio_data,
-                                        nil,
-                                        nil,
-                                        0,
-                                        &app.audio_data.queue);
-	
-		if status != 0 {
-			println('Error creating audio queue: $status')
-			return
-		}
-	}
+	record_audio(mut &app)
 
 	// set max vertices,
 	// for a large number of the same type of object it is better use the instances!!
