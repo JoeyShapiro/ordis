@@ -22,6 +22,32 @@ mut:
 	mouse_x     int = -1
 	mouse_y     int = -1
 	last_time   time.Time = time.now()
+	audio_data AudioData = AudioData{
+		data_format: C.AudioStreamBasicDescription{
+			mSampleRate: 44100.0,
+			mFormatID:   C.kAudioFormatLinearPCM,
+			mFormatFlags: C.kAudioFormatFlagIsSignedInteger | C.kAudioFormatFlagIsPacked,
+			mBytesPerPacket: 2,
+			mFramesPerPacket: 1,
+			mBytesPerFrame: 2,
+			mChannelsPerFrame: 1,
+			mBitsPerChannel: 16,
+		},
+		buffer_byte_size: 0,
+		current_packet: 0,
+		recording: false
+	}
+}
+
+struct AudioData {
+mut:
+    data_format     C.AudioStreamBasicDescription
+    queue           C.AudioQueueRef
+    buffers         [3]C.AudioQueueBufferRef
+    audio_file       C.AudioFileID
+    buffer_byte_size u32
+    current_packet   i64
+    recording        bool
 }
 
 fn create_texture(w int, h int, buf &u8) (gfx.Image, gfx.Sampler) {
@@ -165,8 +191,34 @@ fn frame(mut app App) {
 	app.gg.end()
 }
 
+fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueBufferRef, inStartTime &C.AudioTimeStamp, inNumPackets u32, inPacketDesc &C.AudioStreamPacketDescription) {
+	mut audio_data := unsafe { &AudioData(inUserData) }
+	
+	println('Audio callback triggered! $audio_data.recording')
+
+	// Re-enqueue the buffer for further use
+	unsafe {
+		C.AudioQueueEnqueueBuffer(inAQ, inBuffer, 0, nil)
+	}
+}
+
 fn my_init(mut app App) {
 	app.init_flag = true
+
+	unsafe {
+		status := C.AudioQueueNewInput(&app.audio_data.data_format,
+                                        handle_audio,
+                                        &app.audio_data,
+                                        nil,
+                                        nil,
+                                        0,
+                                        &app.audio_data.queue);
+	
+		if status != 0 {
+			println('Error creating audio queue: $status')
+			return
+		}
+	}
 
 	// set max vertices,
 	// for a large number of the same type of object it is better use the instances!!
