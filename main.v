@@ -35,7 +35,8 @@ mut:
 		},
 		buffer_byte_size: 0,
 		current_packet: 0,
-		recording: false
+		recording: false,
+		decibel: 0.0
 	}
 }
 
@@ -48,6 +49,7 @@ mut:
     buffer_byte_size u32
     current_packet   i64
     recording        bool
+	decibel          f32
 }
 
 fn create_texture(w int, h int, buf &u8) (gfx.Image, gfx.Sampler) {
@@ -155,8 +157,9 @@ fn draw_texture_cubes(app App) {
 		angle := f32(i) * tau / 32.0
 		x := f32(math.cos(angle) * 2.5)
 		y := f32(math.sin(angle) * 2.5)
+		z := (app.audio_data.decibel+60.0) / 60.0 * 2.5 // scale decibel to fit in the circle
 		sgl.push_matrix()
-		sgl.translate(x, 0.0, y)
+		sgl.translate(x, z, y)
 		sgl.scale(0.1, 0.1, 0.1)
 		cube_t(0.5, 0.5, 0.5)
 		sgl.pop_matrix()
@@ -192,7 +195,7 @@ fn frame(mut app App) {
 }
 
 fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueBufferRef, inStartTime &C.AudioTimeStamp, inNumPackets u32, inPacketDesc &C.AudioStreamPacketDescription) {
-	// mut audio_data := unsafe { &AudioData(inUserData) }
+	mut audio_data := unsafe { &AudioData(inUserData) }
 	
 	if inBuffer.mAudioDataByteSize > 0 {
         samples := unsafe { &i16(inBuffer.mAudioData) }
@@ -222,6 +225,7 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 			}
 		}
         println(" ${math.round_sig(db, 3)} dB")
+		audio_data.decibel = f32(db)
     }
 
 	// Re-enqueue the buffer for further use
