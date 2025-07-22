@@ -198,12 +198,14 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
         samples := unsafe { &i16(inBuffer.mAudioData) }
         num_samples := inBuffer.mAudioDataByteSize / sizeof(i16)
         
-        mut sum := i64(0)
+        mut sum_s := i64(0)
+		// TODO print biggest samples. then compare math of them. print to stdout, redirect to file
+		// TODO something i thought about. too many zeros. or something with too little. maybe going too fast
         for i in 0 .. num_samples {
-			sample := unsafe { samples[i] }
-            sum += sample * sample
+			sample := unsafe { i64(samples[i]) }
+            sum_s += sample * sample
         }
-        rms := math.sqrt(f64(sum) / num_samples)
+        rms := math.sqrt(f64(sum_s) / f64(num_samples))
         db := 20 * math.log10(rms / 32767.0)
         
         // Simple level meter
@@ -212,10 +214,14 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
         if bars > 20 { bars = 20 }
         
         print("\033[ALevel: ")
-        mut i := 0 
-        for i < bars { print("█"); i++ }
-        for i < 20 { print("░"); i++ }
-        println(" $db dB")
+		for i in 0 .. 20 {
+			if i < bars {
+				print("█")
+			} else {
+				print("░")
+			}
+		}
+        println(" ${math.round_sig(db, 3)} dB")
     }
 
 	// Re-enqueue the buffer for further use
@@ -240,7 +246,7 @@ fn record_audio(mut app App) {
 		return
 	}
 
-	app.audio_data.buffer_byte_size = 1024 // Set buffer size
+	app.audio_data.buffer_byte_size = 4096 // Set buffer size
 
 	// Allocate and enqueue buffers
     for i in 0 .. 3 {

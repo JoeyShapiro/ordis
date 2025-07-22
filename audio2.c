@@ -14,6 +14,7 @@ typedef struct {
     SInt64 currentPacket;
     bool recording;
     pthread_mutex_t mutex;
+    double all_max; // max sample value for visualization
 } AudioData;
 
 // Real-time audio processing callback
@@ -43,10 +44,21 @@ static void HandleInputBuffer(void *userData,
         int numSamples = inBuffer->mAudioDataByteSize / sizeof(int16_t);
         
         long long sum = 0;
+        int max = -100000000; // Initialize to a very low value
+        int min = 100000000; // Initialize to a very high value
         for (int i = 0; i < numSamples; i++) {
             sum += samples[i] * samples[i];
+            if (samples[i] > max) {
+                max = samples[i];
+            }
+            if (samples[i] < min) {
+                min = samples[i];
+            }
         }
         double rms = sqrt((double)sum / numSamples);
+        if (audioData->all_max < rms) {
+            audioData->all_max = rms; // Update max sample value
+        }
         double db = 20 * log10(rms / 32767.0);
         
         // Simple level meter
@@ -54,11 +66,13 @@ static void HandleInputBuffer(void *userData,
         if (bars < 0) bars = 0;
         if (bars > 20) bars = 20;
         
-        printf("\033[ALevel: ");
+        // printf("\033[ALevel: ");
         int i = 0;
         for (; i < bars; i++) printf("█");
         for (; i < 20; i++) printf("░");
-        printf(" %.1f dB\n", db);
+        uint8_t *data = (uint8_t *)inBuffer->mAudioData;
+        printf(" %.1f dB %d %d      %.2f = %.2f              \n", db, min, max, samples[0], audioData->all_max);
+        // exit(1); // Exit after printing samples
     }
 
     // Re-enqueue the buffer for continuous recording
@@ -122,11 +136,11 @@ int recordAudio(const char* filename) {
     }
     
     // Get the actual format (may be slightly different)
-    UInt32 dataFormatSize = sizeof(audioData.dataFormat);
-    AudioQueueGetProperty(audioData.queue,
-                         kAudioQueueProperty_StreamDescription,
-                         &audioData.dataFormat,
-                         &dataFormatSize);
+    // UInt32 dataFormatSize = sizeof(audioData.dataFormat);
+    // AudioQueueGetProperty(audioData.queue,
+    //                      kAudioQueueProperty_StreamDescription,
+    //                      &audioData.dataFormat,
+    //                      &dataFormatSize);
     
     // Use smaller buffer for more responsive real-time processing
     audioData.bufferByteSize = 4096; // Smaller buffer = lower latency
