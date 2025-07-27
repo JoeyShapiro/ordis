@@ -5,6 +5,7 @@ import sokol.gfx
 import sokol.sgl
 import time
 import math
+import arrays
 
 const win_width = 480
 const win_height = 480
@@ -36,7 +37,8 @@ mut:
 		buffer_byte_size: 0,
 		current_packet: 0,
 		recording: false,
-		decibel: 0.0
+		decibel: 0.0,
+		fft: []f32{ len: 64, init: 0.0 }, // 64 bins for FFT
 	}
 }
 
@@ -50,6 +52,7 @@ mut:
     current_packet   i64
     recording        bool
 	decibel          f32
+	fft 			[]f32
 }
 
 fn create_texture(w int, h int, buf &u8) (gfx.Image, gfx.Sampler) {
@@ -153,11 +156,12 @@ fn draw_texture_cubes(app App) {
 	sgl.push_matrix()
 
 	// unit circle
-	for i in 0 .. 32 {
-		angle := f32(i) * tau / 32.0
+	for i in 0 .. 64 {
+		angle := f32(i) * tau / 64.0
 		x := f32(math.cos(angle) * 2.5)
 		y := f32(math.sin(angle) * 2.5)
-		z := (app.audio_data.decibel+60.0) / 60.0 * 2.5 // scale decibel to fit in the circle
+		// z := (app.audio_data.decibel+60.0) / 60.0 * 2.5 // scale decibel to fit in the circle
+		z := app.audio_data.fft[i] * 2.5 // scale fft to fit in the circle
 		sgl.push_matrix()
 		sgl.translate(x, z, y)
 		sgl.scale(0.1, 0.1, 0.1)
@@ -294,15 +298,22 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 		// Calculate magnitude: sqrt(real² + imag²)
 		mut bases := []f64{ len: int(num_samples), init: 0.0 }
 		for i in 0..num_samples {
-			bases[i] = f64(unsafe{ samples[i] })
+			bases[i] = f64(unsafe{ samples[i] }) / 32767.0 * 2 - 1 // Normalize. think it wants -1 to 1
 		}
 		real, imag := fft(bases, []f64{})
 		mut magnitude := []f64{ len: int(num_samples), init: 0.0 }
 		for i in 0..num_samples {
 			magnitude[i] = math.sqrt(real[i]*real[i] + imag[i]*imag[i])
 		}
+
+		if db > -30 {
+		for m in bases {
+			print("$m ")
+		}
+		exit(0)
+		}
         
-        print("\033[ALevel: ")
+        // print("\033[ALevel: ")
 		for i in 0 .. 20 {
 			if i < bars {
 				print("█")
@@ -310,8 +321,30 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 				print("░")
 			}
 		}
-        println(" ${magnitude} dB")
+		println(" ($db dB)")
+
+		// TODO bucket the freqs. voices only need 100-3000Hz
+		bins := int(64)
+		bin_size := int(int(num_samples) / bins)
+		mut reduce_spectrum := []f64{ len: bins, init: 0.0 }
+
+		println(arrays.max(magnitude) or { 0.0 })
+		
+
+		for i in 0 .. bins {
+			start := i * bin_size
+			end := start + bin_size
+			reduce_spectrum[i] = arrays.sum(magnitude[start..end]) or { 0.0 } / f64(int(num_samples)*bin_size)
+			if reduce_spectrum[i] > 0.2 {
+				print("█")
+			} else {
+				print("░")
+			}
+		}
+		println("")
+
 		audio_data.decibel = f32(db)
+		audio_data.fft = reduce_spectrum.map(f32(it))
     }
 
 	// Re-enqueue the buffer for further use
