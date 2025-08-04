@@ -55,6 +55,9 @@ mut:
 	fft 			[]f32
 }
 
+// TODO maybe show waveform, but not sure how to display it. would look odd
+// TODO use log, everything else it fine
+
 fn create_texture(w int, h int, buf &u8) (gfx.Image, gfx.Sampler) {
 	sz := w * h * 4
 	mut img_desc := gfx.ImageDesc{
@@ -305,13 +308,6 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 		for i in 0..num_samples {
 			magnitude[i] = math.sqrt(real[i]*real[i] + imag[i]*imag[i])
 		}
-
-		if db > -30 {
-		for m in bases {
-			print("$m ")
-		}
-		exit(0)
-		}
         
         // print("\033[ALevel: ")
 		for i in 0 .. 20 {
@@ -325,26 +321,76 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 
 		// TODO bucket the freqs. voices only need 100-3000Hz
 		bins := int(64)
-		bin_size := int(int(num_samples) / bins)
-		mut reduce_spectrum := []f64{ len: bins, init: 0.0 }
-
-		println(arrays.max(magnitude) or { 0.0 })
+		sample_rate := audio_data.data_format.mSampleRate
 		
+		mut log_frequencies := []f64{ len: bins, init: 0.0 }
+		mut reduce_log_spectrum := []f64{ len: bins, init: 0.0 }
 
+		max_freq := sample_rate / 2
+		min_freq := sample_rate / (2 * magnitude.len)
+		
+		// Create logarithmically spaced frequency bins
+		log_min := math.log10(math.max(min_freq, 1))
+		log_max := math.log10(max_freq)
+		log_step := (log_max - log_min) / bins
+		
 		for i in 0 .. bins {
-			start := i * bin_size
-			end := start + bin_size
-			reduce_spectrum[i] = arrays.sum(magnitude[start..end]) or { 0.0 } / f64(int(num_samples)*bin_size)
-			if reduce_spectrum[i] > 0.2 {
+			log_freq := log_min + i * log_step
+			center_freq := math.pow(10, log_freq)
+			
+			// Define bin edges
+			bin_start := math.pow(10, log_freq - log_step / 2)
+			bin_end := math.pow(10, log_freq + log_step / 2)
+			
+			// Map to linear bins and average
+			bin_width := sample_rate / (2 * magnitude.len)
+			start_bin := int(math.floor(bin_start / bin_width))
+			end_bin := int(math.min(math.ceil(bin_end / bin_width), magnitude.len - 1))
+			
+			// Energy-weighted average
+			mut sum := 0.0
+			mut count := 0
+			for j in start_bin .. end_bin {
+				if j >= 0 && j < magnitude.len {
+					sum += magnitude[j] * magnitude[j]
+					count++
+				}
+			}
+			
+			mut avg_magnitude := if count > 0 { math.sqrt(sum / count) } else { 0.0 }
+			log_frequencies[i] = center_freq;
+			reduce_log_spectrum[i] = avg_magnitude;
+		}
+
+		// oh. this was printing all of them, so it was fine
+		// the other was only printing the first. so no fix.
+		// thats fine, and im learning stuff. kidna cool
+		// so thats all correct, and this works right.
+		for val in reduce_log_spectrum {
+			if val > 0.2 {
 				print("█")
 			} else {
 				print("░")
 			}
 		}
-		println("")
+		println()
+
+		// this could have worked, but still not as good. something wrong with indexing
+		// still makes more sense to do this
+		// for i in 0 .. bins {
+		// 	start := i * bin_size
+		// 	end := start + bin_size
+		// 	reduce_spectrum[i] = arrays.sum(magnitude[start..end]) or { 0.0 } / f64(int(num_samples)*bin_size)
+		// 	if reduce_spectrum[i] > 0.2 {
+		// 		print("█")
+		// 	} else {
+		// 		print("░")
+		// 	}
+		// }
+		// println("")
 
 		audio_data.decibel = f32(db)
-		audio_data.fft = reduce_spectrum.map(f32(it))
+		audio_data.fft = reduce_log_spectrum.map(f32(it))
     }
 
 	// Re-enqueue the buffer for further use
