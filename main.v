@@ -5,7 +5,6 @@ import sokol.gfx
 import sokol.sgl
 import time
 import math
-import arrays
 
 const win_width = 480
 const win_height = 480
@@ -310,7 +309,7 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 			magnitude[i] = math.sqrt(real[i]*real[i] + imag[i]*imag[i])
 		}
         
-        // print("\033[ALevel: ")
+        print("\033[ALevel: ")
 		for i in 0 .. 20 {
 			if i < bars {
 				print("█")
@@ -359,36 +358,13 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 			}
 			
 			mut avg_magnitude := if count > 0 { math.sqrt(sum / count) } else { 0.0 }
-			log_frequencies[i] = center_freq;
-			reduce_log_spectrum[i] = avg_magnitude;
-		}
+			log_frequencies[i] = center_freq
+			reduce_log_spectrum[i] = avg_magnitude
 
-		// oh. this was printing all of them, so it was fine
-		// the other was only printing the first. so no fix.
-		// thats fine, and im learning stuff. kidna cool
-		// so thats all correct, and this works right.
-		for val in reduce_log_spectrum {
-			if val > 0.2 {
-				print("█")
-			} else {
-				print("░")
-			}
+			// Calculate theoretical maximum for each bin
+			theoretical_max := math.sqrt(int(num_samples) * (count + 1)) // close enough. ai cant figure it out
+			reduce_log_spectrum[i] = reduce_log_spectrum[i] / theoretical_max
 		}
-		println()
-
-		// this could have worked, but still not as good. something wrong with indexing
-		// still makes more sense to do this
-		// for i in 0 .. bins {
-		// 	start := i * bin_size
-		// 	end := start + bin_size
-		// 	reduce_spectrum[i] = arrays.sum(magnitude[start..end]) or { 0.0 } / f64(int(num_samples)*bin_size)
-		// 	if reduce_spectrum[i] > 0.2 {
-		// 		print("█")
-		// 	} else {
-		// 		print("░")
-		// 	}
-		// }
-		// println("")
 
 		audio_data.decibel = f32(db)
 		audio_data.fft = reduce_log_spectrum.map(f32(it))
