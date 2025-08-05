@@ -79,20 +79,22 @@ fs = 44_100  # Sample rate
 t = np.linspace(0, 1, 2048, endpoint=False)  # 1 second, 1024 samples
 
 # Signal: 50 Hz + 200 Hz sine waves
-signal = np.sin(2 * np.pi * 50 * t) #+ 0.5 * np.sin(2 * np.pi * 200 * t)
-print(min(signal), max(signal))  # Print first 10 samples for verification
+# signal = np.sin(2 * np.pi * 50 * t) #+ 0.5 * np.sin(2 * np.pi * 200 * t)
+# print(min(signal), max(signal))  # Print first 10 samples for verification
 
 # Add some noise to make it realistic
 # signal += 0.1 * np.random.randn(len(signal))
 # TODO is the first one really max
 
-with open('signal.csv', 'w') as f:
-    f.write(','.join([str(s) for s in signal]))
+# with open('signal.csv', 'w') as f:
+#     f.write(','.join([str(s) for s in signal]))
 
 with open('ordis.txt') as f:
-    data = f.read().split(' ')
+    data = f.read().split(', ')
     signal = [float(d) for d in data if d.strip()]
     print(f"FFT Result Length: {len(signal)}")
+
+# signal = signal - np.mean(signal)  # Remove DC offset
 
 # Compute FFT
 fft_real, fft_imag = fft_real_only(signal)

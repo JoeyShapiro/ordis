@@ -301,8 +301,9 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 		// Calculate magnitude: sqrt(real² + imag²)
 		mut bases := []f64{ len: int(num_samples), init: 0.0 }
 		for i in 0..num_samples {
-			bases[i] = f64(unsafe{ samples[i] }) / 32767.0 * 2 - 1 // Normalize. think it wants -1 to 1
+			bases[i] = f64(unsafe{ samples[i] }) / 32767.0
 		}
+
 		real, imag := fft(bases, []f64{})
 		mut magnitude := []f64{ len: int(num_samples), init: 0.0 }
 		for i in 0..num_samples {
