@@ -242,26 +242,28 @@ fn fft(real []f64, imag []f64) ([]f64, []f64) {
 	twiddle_real := angle.map(math.cos(it))
 	twiddle_imag := angle.map(math.sin(it))
 
+	// TODO odd_real can be shorter for some reason
+	m := math.min(odd_real.len, twiddle_real.len)
+
 	// Complex multiplication: (a + bi) * (c + di) = (ac - bd) + (ad + bc)i
     // twiddle * odd = (twiddle_real + i*twiddle_imag) * (odd_real + i*odd_imag)
-	// TODO odd_real can be shorter for some reason`
-	mut temp_real := []f64{ len: odd_real.len, init: 0.0 }
-	mut temp_imag := []f64{ len: odd_imag.len, init: 0.0 }
+	mut temp_real := []f64{ len: m, init: 0.0 }
+	mut temp_imag := []f64{ len: m, init: 0.0 }
 	for i in 0..temp_real.len {
 		temp_real[i] = twiddle_real[i] * odd_real[i] - twiddle_imag[i] * odd_imag[i]
 		temp_imag[i] = twiddle_real[i] * odd_imag[i] + twiddle_imag[i] * odd_real[i]
 	}
     
     // Combine: even ± twiddle*odd
-    mut left_real := []f64{ len: odd_real.len, init: 0.0 }
-    mut left_imag := []f64{ len: odd_imag.len, init: 0.0 }
+    mut left_real := []f64{ len: m, init: 0.0 }
+    mut left_imag := []f64{ len: m, init: 0.0 }
 	for i in 0..left_real.len {
 		left_real[i] = even_real[i] + temp_real[i]   // Real part of first half
 		left_imag[i] = even_imag[i] + temp_imag[i]   // Imaginary part of first half
 	}
     
-    mut right_real := []f64{ len: odd_real.len, init: 0.0 }
-    mut right_imag := []f64{ len: odd_imag.len, init: 0.0 }
+    mut right_real := []f64{ len: m, init: 0.0 }
+    mut right_imag := []f64{ len: m, init: 0.0 }
 	for i in 0..right_real.len {
 		right_real[i] = even_real[i] - temp_real[i]  // Real part of second half  
 		right_imag[i] = even_imag[i] - temp_imag[i]  // Imaginary part of second half
