@@ -10,6 +10,7 @@ const win_width = 480
 const win_height = 480
 const bg_color = gx.black
 const tau =  6.283185307179586
+const fft_bins = 128
 
 struct App {
 mut:
@@ -37,7 +38,7 @@ mut:
 		current_packet: 0,
 		recording: false,
 		decibel: 0.0,
-		fft: []f32{ len: 64, init: 0.0 }, // 64 bins for FFT
+		fft: []f32{ len: fft_bins, init: 0.0 }, // 64 bins for FFT
 	}
 }
 
@@ -158,15 +159,15 @@ fn draw_texture_cubes(app App) {
 	sgl.push_matrix()
 
 	// unit circle
-	for i in 0 .. 64 {
-		angle := f32(i) * tau / 64.0
-		x := f32(math.cos(angle) * 2.5)
-		y := f32(math.sin(angle) * 2.5)
+	for i in 0 .. fft_bins {
+		angle := f32(i) * tau / f32(fft_bins)
+		x := f32(math.cos(angle) * 2.5) * (app.audio_data.fft[i]*2 + 1.0)
+		y := f32(math.sin(angle) * 2.5) * (app.audio_data.fft[i]*2 + 1.0)
 		// z := (app.audio_data.decibel+60.0) / 60.0 * 2.5 // scale decibel to fit in the circle
-		z := app.audio_data.fft[i] * 2.5 // scale fft to fit in the circle
+		z := f32(0.0) // scale fft to fit in the circle
 		sgl.push_matrix()
 		sgl.translate(x, z, y)
-		sgl.scale(0.1, 0.1, 0.1)
+		sgl.scale(0.07, 0.07, 0.07)
 		cube_t(0.5, 0.5, 0.5)
 		sgl.pop_matrix()
 	}
@@ -322,12 +323,10 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 		}
 		println(" ($db dB)")
 
-		// TODO bucket the freqs. voices only need 100-3000Hz
-		bins := int(64)
 		sample_rate := audio_data.data_format.mSampleRate
 		
-		mut log_frequencies := []f64{ len: bins, init: 0.0 }
-		mut reduce_log_spectrum := []f64{ len: bins, init: 0.0 }
+		mut log_frequencies := []f64{ len: fft_bins, init: 0.0 }
+		mut reduce_log_spectrum := []f64{ len: fft_bins, init: 0.0 }
 
 		max_freq := sample_rate / 2
 		min_freq := sample_rate / (2 * magnitude.len)
@@ -335,9 +334,9 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 		// Create logarithmically spaced frequency bins
 		log_min := math.log10(math.max(min_freq, 1))
 		log_max := math.log10(max_freq)
-		log_step := (log_max - log_min) / bins
+		log_step := (log_max - log_min) / fft_bins
 		
-		for i in 0 .. bins {
+		for i in 0 .. fft_bins {
 			log_freq := log_min + i * log_step
 			center_freq := math.pow(10, log_freq)
 			
