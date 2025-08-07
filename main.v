@@ -157,24 +157,26 @@ fn draw_texture_cubes(app App) {
 	sgl.rotate(step, 0.0, 1.0, 0.0)
 	cube_t(1, 1, 1)
 	sgl.push_matrix()
+	sgl.disable_texture()
+
+	// set color based on decibel level
+	db := (app.audio_data.decibel+60.0) / 60.0 + 0.3
+	// TODO optimize
 
 	// unit circle
 	for i in 0 .. fft_bins {
 		angle := f32(i) * tau / f32(fft_bins)
 		x := f32(math.cos(angle) * 2.5) * (app.audio_data.fft[i]*2 + 1.0)
 		y := f32(math.sin(angle) * 2.5) * (app.audio_data.fft[i]*2 + 1.0)
-		// z := (app.audio_data.decibel+60.0) / 60.0 * 2.5 // scale decibel to fit in the circle
 		z := f32(0.0) // scale fft to fit in the circle
 		sgl.push_matrix()
 		sgl.translate(x, z, y)
 		sgl.scale(0.07, 0.07, 0.07)
-		cube_t(0.5, 0.5, 0.5)
+		cube_t(db, db, db)
 		sgl.pop_matrix()
 	}
 
 	sgl.pop_matrix()
-
-	sgl.disable_texture()
 }
 
 fn frame(mut app App) {
@@ -482,10 +484,15 @@ fn my_init(mut app App) {
 				tmp_txt[i + 2] = u8(0)
 				tmp_txt[i + 3] = u8(0xFF)
 			} else {
-				col := if ((x + y) & 1) == 1 { 0xFF } else { 0 }
-				tmp_txt[i] = u8(col) // red
-				tmp_txt[i + 1] = u8(col) // green
-				tmp_txt[i + 2] = u8(col) // blue
+				if ((x + y) & 1) == 1 {
+					tmp_txt[i] = u8(0xFF) // red
+					tmp_txt[i + 1] = u8(0) // green
+					tmp_txt[i + 2] = u8(0xFF) // blue
+				} else {
+					tmp_txt[i] = u8(0) // red
+					tmp_txt[i + 1] = u8(0) // green
+					tmp_txt[i + 2] = u8(0) // blue
+				}
 				tmp_txt[i + 3] = u8(0xFF) // alpha
 			}
 			i += 4
