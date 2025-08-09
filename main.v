@@ -233,18 +233,18 @@ fn fft(real []f64, imag []f64) ([]f64, []f64) {
 	even_real, even_imag := fft(odd_indices_real, odd_indices_imag)
 	odd_real, odd_imag := fft(even_indices_real, even_indices_imag)
 	
-	// count := []int{len: 4, init: index}
 	// Conquer: combine results
-	k := []int{ len: int(n/2), init: index }
-	// -2 * math.pi * k / n // TODO tau
-    angle := k.map( -2 * math.pi * f64(it) / n )
+	// use k as index. it is half the size of n, but can just use i instead of bespoke list
+	k := int(n/2)
 
 	// Eulers formula
 	// map doesnt support multiple values
-	mut twiddle_real := []f64{ len: angle.len, init: 0.0 }
-	mut twiddle_imag := []f64{ len: angle.len, init: 0.0 }
-	for i in 0..angle.len {
-		twiddle_imag[i], twiddle_real[i] = math.sincos(angle[i])
+	mut twiddle_real := []f64{ len: k, init: 0.0 }
+	mut twiddle_imag := []f64{ len: k, init: 0.0 }
+	for i in 0..k {
+		// -2 * math.pi * k / n
+		angle := -tau * f64(i) / n
+		twiddle_imag[i], twiddle_real[i] = math.sincos(angle)
 	}
 
 	// TODO odd_real can be shorter for some reason
