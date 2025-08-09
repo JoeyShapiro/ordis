@@ -207,28 +207,26 @@ fn frame(mut app App) {
 // prefers powers of 2
 fn fft(real []f64, imag []f64) ([]f64, []f64) {
 	n := real.len
-
-	mut imag_use := imag.clone()
-	if imag_use.len == 0 {
-		imag_use = []f64{ len: n, init: 0 }
-	}
-
 	if n <= 1 {
-		return real, imag_use
+		return real, imag
 	}
 
 	// Divide: split into 2 lists, odd and even
-	mut odd_indices_real := []f64{}
-	mut odd_indices_imag := []f64{}
-	mut even_indices_real := []f64{}
-	mut even_indices_imag := []f64{}
+	mut odd_indices_real := []f64{ len: int(n/2), init: 0.0 }
+	mut odd_indices_imag := []f64{ len: int(n/2), init: 0.0 }
+	mut even_indices_real := []f64{ len: int(n/2), init: 0.0 }
+	mut even_indices_imag := []f64{ len: int(n/2), init: 0.0 }
+	mut even_i := 0
+	mut odd_i := 0
 	for i in 0..n {
 		if i&1 == 1 {
-			odd_indices_real << real[i]
-			odd_indices_imag << imag_use[i]
+			odd_indices_real[odd_i] = real[i]
+			odd_indices_imag[odd_i] = imag[i]
+			odd_i++
 		} else {
-			even_indices_real << real[i]
-			even_indices_imag << imag_use[i]
+			even_indices_real[even_i] = real[i]
+			even_indices_imag[even_i] = imag[i]
+			even_i++
 		}
 	}
 
@@ -304,7 +302,7 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 			bases[i] = f64(unsafe{ samples[i] }) / 32767.0
 		}
 
-		real, imag := fft(bases, []f64{})
+		real, imag := fft(bases, []f64{ len: bases.len, init: 0 })
 		mut magnitude := []f64{ len: int(num_samples), init: 0.0 }
 		for i in 0..num_samples {
 			magnitude[i] = math.sqrt(real[i]*real[i] + imag[i]*imag[i])
