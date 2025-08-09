@@ -255,24 +255,17 @@ fn fft(real []f64, imag []f64) ([]f64, []f64) {
 
 	// Complex multiplication: (a + bi) * (c + di) = (ac - bd) + (ad + bc)i
     // twiddle * odd = (twiddle_real + i*twiddle_imag) * (odd_real + i*odd_imag)
-	mut temp_real := []f64{ len: m, init: 0.0 }
-	mut temp_imag := []f64{ len: m, init: 0.0 }
-	for i in 0..temp_real.len {
-		temp_real[i] = twiddle_real[i] * odd_real[i] - twiddle_imag[i] * odd_imag[i]
-		temp_imag[i] = twiddle_real[i] * odd_imag[i] + twiddle_imag[i] * odd_real[i]
-	}
-    
-    // Combine: even ± twiddle*odd
-    mut res_real := []f64{ len: m*2, init: 0.0 }
+	mut res_real := []f64{ len: m*2, init: 0.0 }
     mut res_imag := []f64{ len: m*2, init: 0.0 }
 	for i in 0..m {
-		res_real[i] = even_real[i] + temp_real[i]   // Real part of first half
-		res_imag[i] = even_imag[i] + temp_imag[i]   // Imaginary part of first half
-	}
-    
-	for i in 0..m {
-		res_real[i+m] = even_real[i] - temp_real[i]  // Real part of second half  
-		res_imag[i+m] = even_imag[i] - temp_imag[i]  // Imaginary part of second half
+		// Combine: even ± twiddle*odd
+		temp_real := twiddle_real[i] * odd_real[i] - twiddle_imag[i] * odd_imag[i]
+		res_real[i] = even_real[i] + temp_real   // Real part of first half
+		res_real[i+m] = even_real[i] - temp_real  // Real part of second half 
+
+		temp_imag := twiddle_real[i] * odd_imag[i] + twiddle_imag[i] * odd_real[i]
+		res_imag[i] = even_imag[i] + temp_imag   // Imaginary part of first half
+		res_imag[i+m] = even_imag[i] - temp_imag  // Imaginary part of second half 
 	}
     
     // Concatenate results
