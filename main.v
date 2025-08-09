@@ -230,8 +230,8 @@ fn fft(real []f64, imag []f64) ([]f64, []f64) {
 		}
 	}
 
-	even_real, even_imag := fft(odd_indices_real, odd_indices_imag)
-	odd_real, odd_imag := fft(even_indices_real, even_indices_imag)
+	even_real, even_imag := fft(even_indices_real, even_indices_imag)
+	odd_real, odd_imag := fft(odd_indices_real, odd_indices_imag)
 	
 	// Conquer: combine results
 	// use k as index. it is half the size of n, but can just use i instead of bespoke list
@@ -248,6 +248,7 @@ fn fft(real []f64, imag []f64) ([]f64, []f64) {
 		twiddle_imag, twiddle_real := math.sincos(angle)
 
 		// Combine: even ± twiddle*odd
+		// Concatenate results with i+k
 		temp_real := twiddle_real * odd_real[i] - twiddle_imag * odd_imag[i]
 		res_real[i] = even_real[i] + temp_real   // Real part of first half
 		res_real[i+k] = even_real[i] - temp_real  // Real part of second half 
@@ -256,9 +257,6 @@ fn fft(real []f64, imag []f64) ([]f64, []f64) {
 		res_imag[i] = even_imag[i] + temp_imag   // Imaginary part of first half
 		res_imag[i+k] = even_imag[i] - temp_imag  // Imaginary part of second half 
 	}
-    
-    // Concatenate results
-	// wish i could see exact use of push_array_many and calloc. but this seems bad
 
 	return res_real, res_imag
 }
