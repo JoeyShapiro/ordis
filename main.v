@@ -237,35 +237,24 @@ fn fft(real []f64, imag []f64) ([]f64, []f64) {
 	// use k as index. it is half the size of n, but can just use i instead of bespoke list
 	k := int(n/2)
 
-	// Eulers formula
-	// map doesnt support multiple values
-	mut twiddle_real := []f64{ len: k, init: 0.0 }
-	mut twiddle_imag := []f64{ len: k, init: 0.0 }
-	for i in 0..k {
-		// -2 * math.pi * k / n
-		angle := -tau * f64(i) / n
-		twiddle_imag[i], twiddle_real[i] = math.sincos(angle)
-	}
-
-	// TODO odd_real can be shorter for some reason
-	mut m := odd_real.len
-	if twiddle_real.len < m {
-		m = twiddle_real.len
-	}
-
 	// Complex multiplication: (a + bi) * (c + di) = (ac - bd) + (ad + bc)i
     // twiddle * odd = (twiddle_real + i*twiddle_imag) * (odd_real + i*odd_imag)
-	mut res_real := []f64{ len: m*2, init: 0.0 }
-    mut res_imag := []f64{ len: m*2, init: 0.0 }
-	for i in 0..m {
-		// Combine: even ± twiddle*odd
-		temp_real := twiddle_real[i] * odd_real[i] - twiddle_imag[i] * odd_imag[i]
-		res_real[i] = even_real[i] + temp_real   // Real part of first half
-		res_real[i+m] = even_real[i] - temp_real  // Real part of second half 
+	mut res_real := []f64{ len: n, init: 0.0 }
+    mut res_imag := []f64{ len: n, init: 0.0 }
+	for i in 0..k {
+		// Eulers formula
+		// -2 * math.pi * k / n
+		angle := -tau * f64(i) / n
+		twiddle_imag, twiddle_real := math.sincos(angle)
 
-		temp_imag := twiddle_real[i] * odd_imag[i] + twiddle_imag[i] * odd_real[i]
+		// Combine: even ± twiddle*odd
+		temp_real := twiddle_real * odd_real[i] - twiddle_imag * odd_imag[i]
+		res_real[i] = even_real[i] + temp_real   // Real part of first half
+		res_real[i+k] = even_real[i] - temp_real  // Real part of second half 
+
+		temp_imag := twiddle_real * odd_imag[i] + twiddle_imag * odd_real[i]
 		res_imag[i] = even_imag[i] + temp_imag   // Imaginary part of first half
-		res_imag[i+m] = even_imag[i] - temp_imag  // Imaginary part of second half 
+		res_imag[i+k] = even_imag[i] - temp_imag  // Imaginary part of second half 
 	}
     
     // Concatenate results
