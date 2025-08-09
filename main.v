@@ -258,27 +258,22 @@ fn fft(real []f64, imag []f64) ([]f64, []f64) {
 	}
     
     // Combine: even ± twiddle*odd
-    mut left_real := []f64{ len: m, init: 0.0 }
-    mut left_imag := []f64{ len: m, init: 0.0 }
-	for i in 0..left_real.len {
-		left_real[i] = even_real[i] + temp_real[i]   // Real part of first half
-		left_imag[i] = even_imag[i] + temp_imag[i]   // Imaginary part of first half
+    mut res_real := []f64{ len: m*2, init: 0.0 }
+    mut res_imag := []f64{ len: m*2, init: 0.0 }
+	for i in 0..m {
+		res_real[i] = even_real[i] + temp_real[i]   // Real part of first half
+		res_imag[i] = even_imag[i] + temp_imag[i]   // Imaginary part of first half
 	}
     
-    mut right_real := []f64{ len: m, init: 0.0 }
-    mut right_imag := []f64{ len: m, init: 0.0 }
-	for i in 0..right_real.len {
-		right_real[i] = even_real[i] - temp_real[i]  // Real part of second half  
-		right_imag[i] = even_imag[i] - temp_imag[i]  // Imaginary part of second half
+	for i in 0..m {
+		res_real[i+m] = even_real[i] - temp_real[i]  // Real part of second half  
+		res_imag[i+m] = even_imag[i] - temp_imag[i]  // Imaginary part of second half
 	}
     
     // Concatenate results
-    mut result_real := left_real.clone()
-	result_real << right_real
-    mut result_imag := left_imag.clone()
-	result_imag << right_imag
+	// wish i could see exact use of push_array_many and calloc. but this seems bad
 
-	return result_real, result_imag
+	return res_real, res_imag
 }
 
 fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueBufferRef, inStartTime &C.AudioTimeStamp, inNumPackets u32, inPacketDesc &C.AudioStreamPacketDescription) {
