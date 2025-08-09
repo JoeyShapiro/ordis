@@ -240,11 +240,18 @@ fn fft(real []f64, imag []f64) ([]f64, []f64) {
     angle := k.map( -2 * math.pi * f64(it) / n )
 
 	// Eulers formula
-	twiddle_real := angle.map(math.cos(it))
-	twiddle_imag := angle.map(math.sin(it))
+	// map doesnt support multiple values
+	mut twiddle_real := []f64{ len: angle.len, init: 0.0 }
+	mut twiddle_imag := []f64{ len: angle.len, init: 0.0 }
+	for i in 0..angle.len {
+		twiddle_imag[i], twiddle_real[i] = math.sincos(angle[i])
+	}
 
 	// TODO odd_real can be shorter for some reason
-	m := math.min(odd_real.len, twiddle_real.len)
+	mut m := odd_real.len
+	if twiddle_real.len < m {
+		m = twiddle_real.len
+	}
 
 	// Complex multiplication: (a + bi) * (c + di) = (ac - bd) + (ad + bc)i
     // twiddle * odd = (twiddle_real + i*twiddle_imag) * (odd_real + i*odd_imag)
