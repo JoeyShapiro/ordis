@@ -11,6 +11,7 @@ const win_height = 480
 const bg_color = gx.black
 const tau =  6.283185307179586
 const fft_bins = 128
+const fft_samples = 2048 // buffer_byte_size / sizeof(i16)
 
 struct App {
 mut:
@@ -53,10 +54,13 @@ mut:
     recording        bool
 	decibel          f32
 	fft 			[]f32
+	lookup_sin 		[]f64
+	lookup_cos 		[]f64
 }
 
 // TODO maybe show waveform, but not sure how to display it. would look odd
 // TODO use log, everything else it fine
+// TODO add green color
 
 fn create_texture(w int, h int, buf &u8) (gfx.Image, gfx.Sampler) {
 	sz := w * h * 4
@@ -208,7 +212,7 @@ fn frame(mut app App) {
 // returns the new value in real and imag
 // would like to just use the array and return it, but i guess i cant do thats
 // i mean makes sense, that is a clone, but still. feels off
-fn fft(mut real []f64, mut imag []f64) {
+fn fft(mut real []f64, mut imag []f64, lookup_sin []f64, lookup_cos []f64) {
 	n := real.len
 	if n <= 1 {
 		return
@@ -234,8 +238,8 @@ fn fft(mut real []f64, mut imag []f64) {
 	}
 
 	// use init values of even and odds
-	fft(mut even_real, mut even_imag)
-	fft(mut odd_real, mut odd_imag)
+	fft(mut even_real, mut even_imag, lookup_sin, lookup_cos)
+	fft(mut odd_real, mut odd_imag, lookup_sin, lookup_cos)
 	
 	// Conquer: combine results
 	// use k as index. it is half the size of n, but can just use i instead of bespoke list
@@ -245,9 +249,8 @@ fn fft(mut real []f64, mut imag []f64) {
     // twiddle * odd = (twiddle_real + i*twiddle_imag) * (odd_real + i*odd_imag)
 	for i in 0..k {
 		// Eulers formula
-		// -2 * math.pi * k / n
-		angle := -tau * f64(i) / n
-		twiddle_imag, twiddle_real := math.sincos(angle)
+		// use precomputed values
+		twiddle_imag, twiddle_real := lookup_sc(i, n, lookup_sin, lookup_cos)
 
 		// Combine: even ± twiddle*odd
 		// Concatenate results with i+k
@@ -261,6 +264,13 @@ fn fft(mut real []f64, mut imag []f64) {
 	}
 
 	return
+}
+
+// Fast lookup for any FFT size
+fn lookup_sc(i int, n int, lookup_sin []f64, lookup_cos []f64) (f64, f64) {
+    // Map current (i,n) to the max table index. it solved it
+    table_index := (i * fft_samples / n) % fft_samples
+    return lookup_sin[table_index], lookup_cos[table_index]
 }
 
 fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueBufferRef, inStartTime &C.AudioTimeStamp, inNumPackets u32, inPacketDesc &C.AudioStreamPacketDescription) {
@@ -292,7 +302,7 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 		}
 
 		mut imag := []f64{ len: real.len, init: 0 }
-		fft(mut real, mut imag)
+		fft(mut real, mut imag, audio_data.lookup_sin, audio_data.lookup_cos)
 		mut magnitude := []f64{ len: int(num_samples), init: 0.0 }
 		for i in 0..num_samples {
 			magnitude[i] = math.sqrt(real[i]*real[i] + imag[i]*imag[i])
@@ -380,6 +390,16 @@ fn record_audio(mut app App) {
 	}
 
 	app.audio_data.buffer_byte_size = 4096 // Set buffer size
+
+	// precompute sin and cos values for FFT
+	n := int(fft_samples/2)
+	app.audio_data.lookup_sin = []f64{ len: n, init: 0.0 }
+	app.audio_data.lookup_cos = []f64{ len: n, init: 0.0 }
+	for i in 0..n {
+		// -2 * math.pi * k / n
+		angle := -tau * f64(i) / n
+		app.audio_data.lookup_sin[i], app.audio_data.lookup_cos[i] = math.sincos(angle)
+	}
 
 	// Allocate and enqueue buffers
     for i in 0 .. 3 {
