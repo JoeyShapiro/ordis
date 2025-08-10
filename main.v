@@ -205,33 +205,37 @@ fn frame(mut app App) {
 
 // Simple recursive FFT implementation (Cooley-Tukey algorithm)
 // prefers powers of 2
-fn fft(real []f64, imag []f64) ([]f64, []f64) {
+// returns the new value in real and imag
+// would like to just use the array and return it, but i guess i cant do thats
+// i mean makes sense, that is a clone, but still. feels off
+fn fft(mut real []f64, mut imag []f64) {
 	n := real.len
 	if n <= 1 {
-		return real, imag
+		return
 	}
 
 	// Divide: split into 2 lists, odd and even
-	mut odd_indices_real := []f64{ len: int(n/2), init: 0.0 }
-	mut odd_indices_imag := []f64{ len: int(n/2), init: 0.0 }
-	mut even_indices_real := []f64{ len: int(n/2), init: 0.0 }
-	mut even_indices_imag := []f64{ len: int(n/2), init: 0.0 }
+	mut odd_real := []f64{ len: int(n/2), init: 0.0 }
+	mut odd_imag := []f64{ len: int(n/2), init: 0.0 }
+	mut even_real := []f64{ len: int(n/2), init: 0.0 }
+	mut even_imag := []f64{ len: int(n/2), init: 0.0 }
 	mut even_i := 0
 	mut odd_i := 0
 	for i in 0..n {
 		if i&1 == 1 {
-			odd_indices_real[odd_i] = real[i]
-			odd_indices_imag[odd_i] = imag[i]
+			odd_real[odd_i] = real[i]
+			odd_imag[odd_i] = imag[i]
 			odd_i++
 		} else {
-			even_indices_real[even_i] = real[i]
-			even_indices_imag[even_i] = imag[i]
+			even_real[even_i] = real[i]
+			even_imag[even_i] = imag[i]
 			even_i++
 		}
 	}
 
-	even_real, even_imag := fft(even_indices_real, even_indices_imag)
-	odd_real, odd_imag := fft(odd_indices_real, odd_indices_imag)
+	// use init values of even and odds
+	fft(mut even_real, mut even_imag)
+	fft(mut odd_real, mut odd_imag)
 	
 	// Conquer: combine results
 	// use k as index. it is half the size of n, but can just use i instead of bespoke list
@@ -239,8 +243,6 @@ fn fft(real []f64, imag []f64) ([]f64, []f64) {
 
 	// Complex multiplication: (a + bi) * (c + di) = (ac - bd) + (ad + bc)i
     // twiddle * odd = (twiddle_real + i*twiddle_imag) * (odd_real + i*odd_imag)
-	mut res_real := []f64{ len: n, init: 0.0 }
-    mut res_imag := []f64{ len: n, init: 0.0 }
 	for i in 0..k {
 		// Eulers formula
 		// -2 * math.pi * k / n
@@ -250,15 +252,15 @@ fn fft(real []f64, imag []f64) ([]f64, []f64) {
 		// Combine: even ± twiddle*odd
 		// Concatenate results with i+k
 		temp_real := twiddle_real * odd_real[i] - twiddle_imag * odd_imag[i]
-		res_real[i] = even_real[i] + temp_real   // Real part of first half
-		res_real[i+k] = even_real[i] - temp_real  // Real part of second half 
+		real[i] = even_real[i] + temp_real   // Real part of first half
+		real[i+k] = even_real[i] - temp_real  // Real part of second half 
 
 		temp_imag := twiddle_real * odd_imag[i] + twiddle_imag * odd_real[i]
-		res_imag[i] = even_imag[i] + temp_imag   // Imaginary part of first half
-		res_imag[i+k] = even_imag[i] - temp_imag  // Imaginary part of second half 
+		imag[i] = even_imag[i] + temp_imag   // Imaginary part of first half
+		imag[i+k] = even_imag[i] - temp_imag  // Imaginary part of second half 
 	}
 
-	return res_real, res_imag
+	return
 }
 
 fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueBufferRef, inStartTime &C.AudioTimeStamp, inNumPackets u32, inPacketDesc &C.AudioStreamPacketDescription) {
@@ -284,12 +286,13 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
         if bars > 20 { bars = 20 }
 
 		// Calculate magnitude: sqrt(real² + imag²)
-		mut bases := []f64{ len: int(num_samples), init: 0.0 }
+		mut real := []f64{ len: int(num_samples), init: 0.0 }
 		for i in 0..num_samples {
-			bases[i] = f64(unsafe{ samples[i] }) / 32767.0
+			real[i] = f64(unsafe{ samples[i] }) / 32767.0
 		}
 
-		real, imag := fft(bases, []f64{ len: bases.len, init: 0 })
+		mut imag := []f64{ len: real.len, init: 0 }
+		fft(mut real, mut imag)
 		mut magnitude := []f64{ len: int(num_samples), init: 0.0 }
 		for i in 0..num_samples {
 			magnitude[i] = math.sqrt(real[i]*real[i] + imag[i]*imag[i])
