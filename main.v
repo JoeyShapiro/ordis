@@ -13,6 +13,14 @@ const tau =  6.283185307179586
 const fft_bins = 128
 const fft_samples = 2048 // buffer_byte_size / sizeof(i16)
 
+// TODO use simd
+// TODO try different backends
+// TODO fix crash
+// TODO try the context
+// TODO use f32. i think it is better. normally use float, not double
+// sokol should use f64, like everything. but its c like. it prolly using float
+// so f32 is the better way to go
+
 struct App {
 mut:
 	gg          &gg.Context = unsafe { nil }
@@ -161,14 +169,15 @@ fn draw_texture_cubes(app App) {
 
 	// set color based on decibel level
 	db := (app.audio_data.decibel+60.0) / 60.0 + 0.3
-	// TODO optimize
 
 	// unit circle
+	z := f32(0.0) // scale fft to fit in the circle
 	for i in 0 .. fft_bins {
 		angle := f32(i) * tau / f32(fft_bins)
-		x := f32(math.cos(angle) * 2.5) * (app.audio_data.fft[i]*2 + 1.0)
-		y := f32(math.sin(angle) * 2.5) * (app.audio_data.fft[i]*2 + 1.0)
-		z := f32(0.0) // scale fft to fit in the circle
+		s, c := math.sincos(angle)
+		scale := 2.5 * (app.audio_data.fft[i] * 2 + 1.0)
+		x := f32(c * scale)
+		y := f32(s * scale)
 		sgl.push_matrix()
 		sgl.translate(x, z, y)
 		sgl.scale(0.07, 0.07, 0.07)
@@ -311,13 +320,7 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 		}
 
 		mut imag := []f64{ len: real.len, init: 0 }
-		mut ctx := FFTWorkspace{
-			odd_real:  []f64{ len: int(num_samples/2), init: 0.0 }
-			odd_imag:  []f64{ len: int(num_samples/2), init: 0.0 }
-			even_real: []f64{ len: int(num_samples/2), init: 0.0 }
-			even_imag: []f64{ len: int(num_samples/2), init: 0.0 }
-			n: real.len
-		}
+		mut ctx := FFTWorkspace{}
 		fft(mut ctx, mut real, mut imag, audio_data.lookup_sin, audio_data.lookup_cos)
 		mut magnitude := []f64{ len: int(num_samples), init: 0.0 }
 		for i in 0..num_samples {
