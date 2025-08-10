@@ -62,8 +62,8 @@ mut:
     recording        bool
 	decibel          f32
 	fft 			[]f32
-	lookup_sin 		[]f64
-	lookup_cos 		[]f64
+	lookup_sin 		[]f32
+	lookup_cos 		[]f32
 }
 
 fn create_texture(w int, h int, buf &u8) (gfx.Image, gfx.Sampler) {
@@ -226,7 +226,7 @@ mut:
 // returns the new value in real and imag
 // would like to just use the array and return it, but i guess i cant do thats
 // i mean makes sense, that is a clone, but still. feels off
-fn fft(mut ctx FFTWorkspace, mut real []f64, mut imag []f64, lookup_sin []f64, lookup_cos []f64) {
+fn fft(mut ctx FFTWorkspace, mut real []f32, mut imag []f32, lookup_sin []f32, lookup_cos []f32) {
 	n := real.len
 	if n <= 1 {
 		return
@@ -236,10 +236,10 @@ fn fft(mut ctx FFTWorkspace, mut real []f64, mut imag []f64, lookup_sin []f64, l
 	k := int(n/2)
 
 	// Divide: split into 2 lists, odd and even
-	mut odd_real := []f64{ len: k, init: 0.0 }
-	mut odd_imag := []f64{ len: k, init: 0.0 }
-	mut even_real := []f64{ len: k, init: 0.0 }
-	mut even_imag := []f64{ len: k, init: 0.0 }
+	mut odd_real := []f32{ len: k, init: 0.0 }
+	mut odd_imag := []f32{ len: k, init: 0.0 }
+	mut even_real := []f32{ len: k, init: 0.0 }
+	mut even_imag := []f32{ len: k, init: 0.0 }
 	mut even_i := 0
 	mut odd_i := 0
 	for i in 0..n {
@@ -285,7 +285,7 @@ fn fft(mut ctx FFTWorkspace, mut real []f64, mut imag []f64, lookup_sin []f64, l
 }
 
 // Fast lookup for any FFT size
-fn lookup_sc(i int, n int, lookup_sin []f64, lookup_cos []f64) (f64, f64) {
+fn lookup_sc(i int, n int, lookup_sin []f32, lookup_cos []f32) (f32, f32) {
     // Map current (i,n) to the max table index. it solved it
     table_index := (i * fft_samples / n) % fft_samples
     return lookup_sin[table_index], lookup_cos[table_index]
@@ -314,12 +314,12 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
         if bars > 20 { bars = 20 }
 
 		// Calculate magnitude: sqrt(real² + imag²)
-		mut real := []f64{ len: int(num_samples), init: 0.0 }
+		mut real := []f32{ len: int(num_samples), init: 0.0 }
 		for i in 0..num_samples {
-			real[i] = f64(unsafe{ samples[i] }) / 32767.0
+			real[i] = f32(unsafe{ samples[i] }) / 32767.0
 		}
 
-		mut imag := []f64{ len: real.len, init: 0 }
+		mut imag := []f32{ len: real.len, init: 0 }
 		mut ctx := FFTWorkspace{}
 		fft(mut ctx, mut real, mut imag, audio_data.lookup_sin, audio_data.lookup_cos)
 		mut magnitude := []f64{ len: int(num_samples), init: 0.0 }
@@ -412,12 +412,13 @@ fn record_audio(mut app App) {
 
 	// precompute sin and cos values for FFT
 	n := int(fft_samples/2)
-	app.audio_data.lookup_sin = []f64{ len: n, init: 0.0 }
-	app.audio_data.lookup_cos = []f64{ len: n, init: 0.0 }
+	app.audio_data.lookup_sin = []f32{ len: n, init: 0.0 }
+	app.audio_data.lookup_cos = []f32{ len: n, init: 0.0 }
 	for i in 0..n {
 		// -2 * math.pi * k / n
-		angle := -tau * f64(i) / n
-		app.audio_data.lookup_sin[i], app.audio_data.lookup_cos[i] = math.sincos(angle)
+		angle := -tau * f32(i) / n
+		s, c := math.sincos(angle)
+		app.audio_data.lookup_sin[i], app.audio_data.lookup_cos[i] = f32(s), f32(c)
 	}
 
 	// Allocate and enqueue buffers
