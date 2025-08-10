@@ -207,22 +207,34 @@ fn frame(mut app App) {
 	app.gg.end()
 }
 
+struct FFTWorkspace {
+mut:
+	odd_real  []f64
+	odd_imag  []f64
+	even_real []f64
+	even_imag []f64
+	n int
+}
+
 // Simple recursive FFT implementation (Cooley-Tukey algorithm)
 // prefers powers of 2
 // returns the new value in real and imag
 // would like to just use the array and return it, but i guess i cant do thats
 // i mean makes sense, that is a clone, but still. feels off
-fn fft(mut real []f64, mut imag []f64, lookup_sin []f64, lookup_cos []f64) {
+fn fft(mut ctx FFTWorkspace, mut real []f64, mut imag []f64, lookup_sin []f64, lookup_cos []f64) {
 	n := real.len
 	if n <= 1 {
 		return
 	}
 
+	// use k as index. it is half the size of n, but can just use i instead of bespoke list
+	k := int(n/2)
+
 	// Divide: split into 2 lists, odd and even
-	mut odd_real := []f64{ len: int(n/2), init: 0.0 }
-	mut odd_imag := []f64{ len: int(n/2), init: 0.0 }
-	mut even_real := []f64{ len: int(n/2), init: 0.0 }
-	mut even_imag := []f64{ len: int(n/2), init: 0.0 }
+	mut odd_real := []f64{ len: k, init: 0.0 }
+	mut odd_imag := []f64{ len: k, init: 0.0 }
+	mut even_real := []f64{ len: k, init: 0.0 }
+	mut even_imag := []f64{ len: k, init: 0.0 }
 	mut even_i := 0
 	mut odd_i := 0
 	for i in 0..n {
@@ -238,13 +250,14 @@ fn fft(mut real []f64, mut imag []f64, lookup_sin []f64, lookup_cos []f64) {
 	}
 
 	// use init values of even and odds
-	fft(mut even_real, mut even_imag, lookup_sin, lookup_cos)
-	fft(mut odd_real, mut odd_imag, lookup_sin, lookup_cos)
+	// set to 1 because of the last inner call
+	// TODO try context. it will modify it, but wont they be done with it by that time
+	ctx.n = k
+	fft(mut ctx, mut even_real, mut even_imag, lookup_sin, lookup_cos)
+	ctx.n = k
+	fft(mut ctx, mut odd_real, mut odd_imag, lookup_sin, lookup_cos)
 	
 	// Conquer: combine results
-	// use k as index. it is half the size of n, but can just use i instead of bespoke list
-	k := int(n/2)
-
 	// Complex multiplication: (a + bi) * (c + di) = (ac - bd) + (ad + bc)i
     // twiddle * odd = (twiddle_real + i*twiddle_imag) * (odd_real + i*odd_imag)
 	for i in 0..k {
@@ -302,7 +315,14 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 		}
 
 		mut imag := []f64{ len: real.len, init: 0 }
-		fft(mut real, mut imag, audio_data.lookup_sin, audio_data.lookup_cos)
+		mut ctx := FFTWorkspace{
+			odd_real:  []f64{ len: int(num_samples/2), init: 0.0 }
+			odd_imag:  []f64{ len: int(num_samples/2), init: 0.0 }
+			even_real: []f64{ len: int(num_samples/2), init: 0.0 }
+			even_imag: []f64{ len: int(num_samples/2), init: 0.0 }
+			n: real.len
+		}
+		fft(mut ctx, mut real, mut imag, audio_data.lookup_sin, audio_data.lookup_cos)
 		mut magnitude := []f64{ len: int(num_samples), init: 0.0 }
 		for i in 0..num_samples {
 			magnitude[i] = math.sqrt(real[i]*real[i] + imag[i]*imag[i])
