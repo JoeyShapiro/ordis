@@ -58,10 +58,6 @@ mut:
 	lookup_cos 		[]f64
 }
 
-// TODO maybe show waveform, but not sure how to display it. would look odd
-// TODO use log, everything else it fine
-// TODO add green color
-
 fn create_texture(w int, h int, buf &u8) (gfx.Image, gfx.Sampler) {
 	sz := w * h * 4
 	mut img_desc := gfx.ImageDesc{
@@ -491,30 +487,23 @@ fn my_init(mut app App) {
 	mut i := 0
 	for i < sz {
 		unsafe {
-			y := (i >> 0x8) >> 5 // 8 cell
-			x := (i & 0xFF) >> 5 // 8 cell
+			y := (i >> 0x8) >> 2 // 2 gives best look. higher doesnt look right
+			x := (i & 0xFF) >> 2
 			// upper left corner
 			if x == 0 && y == 0 {
 				tmp_txt[i] = u8(0xFF)
 				tmp_txt[i + 1] = u8(0)
 				tmp_txt[i + 2] = u8(0)
 				tmp_txt[i + 3] = u8(0xFF)
-			}
-			// low right corner
-			else if x == 7 && y == 7 {
-				tmp_txt[i] = u8(0)
-				tmp_txt[i + 1] = u8(0xFF)
-				tmp_txt[i + 2] = u8(0)
-				tmp_txt[i + 3] = u8(0xFF)
 			} else {
-				if ((x + y) & 1) == 1 {
+				if x == y || x == 0 || y == 0 || x == 63 || y == 63 {
+					tmp_txt[i] = u8(0) // red
+					tmp_txt[i + 1] = u8(0xFF) // green
+					tmp_txt[i + 2] = u8(0) // blue
+				} else {
 					tmp_txt[i] = u8(0xFF) // red
 					tmp_txt[i + 1] = u8(0) // green
 					tmp_txt[i + 2] = u8(0xFF) // blue
-				} else {
-					tmp_txt[i] = u8(0) // red
-					tmp_txt[i + 1] = u8(0) // green
-					tmp_txt[i + 2] = u8(0) // blue
 				}
 				tmp_txt[i + 3] = u8(0xFF) // alpha
 			}
