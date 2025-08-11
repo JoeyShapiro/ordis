@@ -14,12 +14,10 @@ const fft_bins = 128
 const fft_samples = 2048 // buffer_byte_size / sizeof(i16)
 
 // TODO use simd
-// TODO try different backends
 // TODO fix crash
 // TODO try the context
-// TODO use f32. i think it is better. normally use float, not double
-// sokol should use f64, like everything. but its c like. it prolly using float
-// so f32 is the better way to go
+
+// -cc clang doesnt seem to make a difference
 
 struct App {
 mut:
@@ -256,7 +254,6 @@ fn fft(mut ctx FFTWorkspace, mut real []f32, mut imag []f32, lookup_sin []f32, l
 
 	// use init values of even and odds
 	// set to 1 because of the last inner call
-	// TODO try context. it will modify it, but wont they be done with it by that time
 	ctx.n = k
 	fft(mut ctx, mut even_real, mut even_imag, lookup_sin, lookup_cos)
 	ctx.n = k
