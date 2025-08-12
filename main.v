@@ -14,7 +14,7 @@ const fft_bins = 128
 const fft_samples = 2048 // buffer_byte_size / sizeof(i16)
 
 // TODO use simd
-// TODO fix crash
+// TODO fix crash: the data isnt a power of 2, and causes bad division and int conversion. so it is out indexed
 // TODO try the context
 
 // -cc clang doesnt seem to make a difference
@@ -232,6 +232,17 @@ fn fft(mut ctx FFTWorkspace, mut real []f32, mut imag []f32, lookup_sin []f32, l
 
 	// use k as index. it is half the size of n, but can just use i instead of bespoke list
 	k := int(n/2)
+	// make sure k is even
+	// k = if k & 1 == 0 { k } else { k - 1 } // will drop last element of odd if odd number, but eh
+	// n == 127 (odd)
+	// k == 63 (maybe odd)
+	// 63+63 = 126 (even)
+	// even is 1 to short. crashes
+	// could ignore, but eh
+	// could pad, but expensive
+	// lets just do this
+	// k_even := if n&1 == 0 { k_odd } else { k_odd + 1 }
+
 
 	// Divide: split into 2 lists, odd and even
 	mut odd_real := []f32{ len: k, init: 0.0 }
@@ -293,11 +304,27 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 	
 	if inBuffer.mAudioDataByteSize > 0 {
         samples := unsafe { &i16(inBuffer.mAudioData) }
-        num_samples := inBuffer.mAudioDataByteSize / sizeof(i16)
+        mut num_samples := inBuffer.mAudioDataByteSize / sizeof(i16)
+		// happens every 8 seconds, on the dot
+		// if num_samples != fft_samples {
+		// 	println("${time.now()}: warning: num_samples != fft_samples, got $num_samples, expected $fft_samples\n")
+		// 	unsafe {
+		// 		C.AudioQueueEnqueueBuffer(inAQ, inBuffer, 0, nil)
+		// 	}
+		// 	return
+		// }
+
+		// could drop them, but eh
+		// could pad, but that would be too slow
+		// round num_samples to the nearest power of 2
+		// shouldnt be larger than 2048
+		mut power := u32(1)
+		for power <= num_samples >> 1 {
+			power <<= 1
+		}
+		num_samples = power
         
         mut sum_s := i64(0)
-		// TODO print biggest samples. then compare math of them. print to stdout, redirect to file
-		// TODO something i thought about. too many zeros. or something with too little. maybe going too fast
         for i in 0 .. num_samples {
 			sample := unsafe { i64(samples[i]) }
             sum_s += sample * sample
