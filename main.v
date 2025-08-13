@@ -15,6 +15,8 @@ const fft_samples = 2048 // buffer_byte_size / sizeof(i16)
 
 // TODO use simd
 // TODO try the context
+// TODO bench without fft
+// crashed instruments, so lost tests
 
 // -cc clang doesnt seem to make a difference
 
@@ -209,12 +211,12 @@ fn frame(mut app App) {
 	app.gg.end()
 }
 
-struct FFTWorkspace {
+struct FFTContext {
 mut:
-	odd_real  []f64
-	odd_imag  []f64
-	even_real []f64
-	even_imag []f64
+	workspace_odd_real  []f32
+	workspace_odd_imag  []f32
+	workspace_even_real []f32
+	workspace_even_imag []f32
 	n int
 }
 
@@ -223,7 +225,7 @@ mut:
 // returns the new value in real and imag
 // would like to just use the array and return it, but i guess i cant do thats
 // i mean makes sense, that is a clone, but still. feels off
-fn fft(mut ctx FFTWorkspace, mut real []f32, mut imag []f32, lookup_sin []f32, lookup_cos []f32) {
+fn fft(mut ctx FFTContext, mut real []f32, mut imag []f32, lookup_sin []f32, lookup_cos []f32) {
 	n := real.len
 	if n <= 1 {
 		return
@@ -233,6 +235,7 @@ fn fft(mut ctx FFTWorkspace, mut real []f32, mut imag []f32, lookup_sin []f32, l
 	k := int(n/2)
 
 	// Divide: split into 2 lists, odd and even
+	// mallocs arent that bad. fair compare showed little difference
 	mut odd_real := []f32{ len: k, init: 0.0 }
 	mut odd_imag := []f32{ len: k, init: 0.0 }
 	mut even_real := []f32{ len: k, init: 0.0 }
@@ -324,7 +327,7 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 		}
 
 		mut imag := []f32{ len: real.len, init: 0 }
-		mut ctx := FFTWorkspace{}
+		mut ctx := FFTContext{}
 		fft(mut ctx, mut real, mut imag, audio_data.lookup_sin, audio_data.lookup_cos)
 		mut magnitude := []f64{ len: int(num_samples), init: 0.0 }
 		for i in 0..num_samples {
@@ -341,13 +344,11 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 		}
 		println(" ($db dB)")
 
-		sample_rate := audio_data.data_format.mSampleRate
-		
 		mut log_frequencies := []f64{ len: fft_bins, init: 0.0 }
 		mut reduce_log_spectrum := []f64{ len: fft_bins, init: 0.0 }
 
-		max_freq := sample_rate / 2
-		min_freq := sample_rate / (2 * magnitude.len)
+		max_freq := audio_data.data_format.mSampleRate / 2
+		min_freq := audio_data.data_format.mSampleRate / (2 * num_samples)
 		
 		// Create logarithmically spaced frequency bins
 		log_min := math.log10(math.max(min_freq, 1))
@@ -363,7 +364,7 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 			bin_end := math.pow(10, log_freq + log_step / 2)
 			
 			// Map to linear bins and average
-			bin_width := sample_rate / (2 * magnitude.len)
+			bin_width := audio_data.data_format.mSampleRate / (2 * magnitude.len)
 			start_bin := int(math.floor(bin_start / bin_width))
 			end_bin := int(math.min(math.ceil(bin_end / bin_width), magnitude.len - 1))
 			
