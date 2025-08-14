@@ -13,7 +13,7 @@ const tau =  6.283185307179586
 const fft_bins = 128
 const fft_samples = 2048 // buffer_byte_size / sizeof(i16)
 
-// TODO use simd
+// simd wont really work. would take long to batch them. and equations dont seem right for it. some other time
 
 // -cc clang doesnt seem to make a difference
 
@@ -328,6 +328,8 @@ fn handle_audio(inUserData voidptr, inAQ C.AudioQueueRef, inBuffer C.AudioQueueB
 		fft(mut ctx, mut real, mut imag, audio_data.lookup_sin, audio_data.lookup_cos)
 		mut magnitude := []f64{ len: int(num_samples), init: 0.0 }
 		for i in 0..num_samples {
+			// dist = sqrt(p^2 - 0)
+			// maybe simd able, but would only work on 1 index at a time
 			magnitude[i] = math.sqrt(real[i]*real[i] + imag[i]*imag[i])
 		}
         
