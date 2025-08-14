@@ -14,9 +14,6 @@ const fft_bins = 128
 const fft_samples = 2048 // buffer_byte_size / sizeof(i16)
 
 // TODO use simd
-// TODO try the context
-// TODO bench without fft
-// crashed instruments, so lost tests
 
 // -cc clang doesnt seem to make a difference
 
