@@ -1,5 +1,4 @@
 import gg
-import gx
 import sokol.sapp
 import sokol.gfx
 import sokol.sgl
@@ -8,7 +7,7 @@ import math
 
 const win_width = 480
 const win_height = 480
-const bg_color = gx.black
+const bg_color = gg.black
 const tau =  6.283185307179586
 const fft_bins = 128
 const fft_samples = 2048 // buffer_byte_size / sizeof(i16)
